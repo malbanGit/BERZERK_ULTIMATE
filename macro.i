@@ -1,5 +1,3 @@
-
-
 ; dome Bruce Tomlin like defines
 ; and macros
 Read_Btns           EQU      $F1BA                        ; 
@@ -123,6 +121,10 @@ divide_end\?:
                     endm     
 
 ; doesn't check diagonals!
+; return edge crossing in the usual 4 bit format of berzerk
+; this does not check actual walls - it checks if the relative position of the object
+; with the current speed is outside of the coordinates of one quadrant!
+
 CHECK_FOR_QUADRANT_EDGE_CROSSING macro MAP
                     clrb                                  ; 
                     cmpa     MAP                           ; 
@@ -271,12 +273,15 @@ mapKnown\?
 * See if bullet collided with a wall
                     ldd      B_YPOS_TAIL,u                ; * Bullet's head position 
                     jsr      MapPointToQnMakeRel          ;MapPointToQuadrantAndMakeRelative; 
-                    tst      <quadrantOfPoint             ; 
-                    bmi      noWallHere\?                      ; 
+;                    tst      <quadrantOfPoint             ; 
+;                    bmi      noWallHere\?                      ; 
 ; do one check for complete speed!
 ;                    ldx      #MapVelocity 
                     CHECK_FOR_QUADRANT_EDGE_CROSSING  MapVelocity ; jsr CheckForQuadrantEdgeCrossing ; 
-noWallHere\?           bitb     <$99                         ; * Contact with wall? 
+noWallHere\?           
+                    ; in $99 is the bitmap of the current walls
+                    ; in b is the bitmap of the current "edge" corssing of the quadrant
+                    bitb     <$99                         ; * Contact with wall? 
                     beq      noWallHit\?                     ; 
                     jsr      removeBullet 
  bra skipUpdate
