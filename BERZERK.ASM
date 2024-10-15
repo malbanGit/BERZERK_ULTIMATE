@@ -1,3 +1,11 @@
+; This version fixes a bug, where robots could not shoot anymore.
+; if this also fixes the bug, where once every few weeks a bullet may slip through a wall
+; I don't know - but I doubt it.
+; I have not found the condition when that occurs - as such I can not test it.
+
+BULLET_WALL_TEST = 0
+
+
 ; still "beta" version, since no bug was found :-()
 
 ; TEST (Thomas, shots go thru - perhaps only up to 6?
@@ -44,13 +52,25 @@
 USE_PB6             =        1 
 
 DALEK               =        0 
+
+ if BULLET_WALL_TEST = 1
+START_LEVEL = 25
+NO_OTTO             =        1
+ROBOT_BULLET_RESTRUCTION  =  1                            ; if "on" than only max no of bullets can be shot by robots                           
+MAX_ROBOT_BULLETS   =        10 
+INVINCIBLE          =        1                            ; only shots from robots 
+INVINCIBLE_ROBOT    =        1                            ; only robots 
+ else
 START_LEVEL         =        0 
 NO_OTTO             =        0 
-BULLET_BULLET_THRESHOLD  =   1                            ; how far away can a bullet be from another bullet and still "hit" 
-MAX_BULLET_SPEED    =        6 
 ROBOT_BULLET_RESTRUCTION  =  1                            ; if "on" than only max no of bullets can be shot by robots                           
 MAX_ROBOT_BULLETS   =        10 
 INVINCIBLE          =        0                            ; only shots from robots 
+INVINCIBLE_ROBOT    =        0                            ; only robots 
+ endif
+
+BULLET_BULLET_THRESHOLD  =   1                            ; how far away can a bullet be from another bullet and still "hit" 
+MAX_BULLET_SPEED    =        6 
 
 
 ;With the final version, from top to bottom in hex, the intensities of the "middle" lines are:
@@ -136,7 +156,8 @@ mainJumpIndex       =        $c8C5
                     ds       B_ORIGIN, 1                  ; 1 = player bullet, 0 robot bullet 
                     end struct 
 ;
-endOfBullets        =        $C974 + BulletStruct*MAX_BULLETS_OBJECTS ; CAF4 
+
+endOfBullets        =        bulletObjects + BulletStruct*MAX_BULLETS_OBJECTS ; CAF4 
 quadrantOfPoint     =        $C89A 
                     bss      
                     org      $cb00 
@@ -714,6 +735,42 @@ StartNewTurn:
                     jsr      initBulletList 
                     clr      currentMapVelocity 
                     clr      currentCombinedVelocityDirection 
+
+ if BULLET_WALL_TEST = 1
+ ldx #$C87D ; Vec_Random_Seed
+; lda #16
+; sta ,x+
+; lda #16
+; sta ,x+
+; lda #17
+; sta ,x+
+
+ if BULLET_WALL_TEST = 12
+
+ lda #16
+ sta ,x+
+ lda #16
+ sta ,x+
+ lda #17
+ sta ,x+
+
+ ldx      #$C900                       ; 
+ lda #10
+ sta      8,x                          ; * Set number of lives 
+ lda #25
+ sta      12,x                         ; levels played 
+ endif
+
+ ldd #$3830 ; start with score of 8000 - max difficulty = 6
+ std $C900 + 2 ; player 0 highscore - the "middle" digits xx !! xx
+
+ ldd #$3030 ; start with score of 8000 - max difficulty = 6
+ std $C900 + 4 ; player 0 highscore - the "middle" digits xx !! xx
+
+
+ endif
+
+
                     lda      #$3F                         ; * Set loop counter 
                     sta      <$85                         ; 
                     ldx      #$C8C5                       ; * Initialize game RAM 
@@ -821,7 +878,7 @@ P00FC:              sta      <$A7                         ; * Robot processing d
                     endif    
 *
 * This seeds the robot structure array.  It attempts to
-                    *        'activate' a random number of robots.  If it fails to
+*        'activate' a random number of robots.  If it fails to
 * seed any robots, then it tries over again.
 * The robot array is an array of structures, located
 * at C91C-C973                                            ; there are 11 entries, each 8 bytes long.
@@ -871,6 +928,118 @@ P014C:              leax     2,x                          ;
                     lda      <$C7                         ; 
                     beq      P0104                        ; 
                     sta      <$C8                         ; 
+
+
+
+
+* C91C-C973     Array of robot structures (11 entries)
+*
+*               byte    meaning
+*               ----    -------
+*               0       robot's y position.
+*               1       robot's x position.
+*               2       flag: $80 = alive, 0 = gone, $0F = just killed
+*               3       direction of travel(0-10)         ; indexes into extremities tbl
+*               4       Eye box to draw (0, 2, 4, 6)
+*               5       Delay before robot starts shooting (0-7)
+*               6       # of bullets robot can fire in a burst
+*               7       Delay between processing a robot (moving, firing, etc)
+ if BULLET_WALL_TEST = 1
+ if BULLET_WALL_TEST = 0
+ pshs x,a
+ ldx #0xC91C ; robot structure
+ ;clr 2,x ; kill robot 0
+; clr 8+2,x ; kill robot 1  ***
+; clr 16+2,x ; kill robot 2
+; clr 24+2,x ; kill robot 3 bullets go THROUGH the player!!!
+
+ lda #10
+ adda 24+0,x
+ sta 24+0,x
+
+ lda #-1
+ adda 24+1,x
+ sta 24+1,x
+
+
+ clr 32+2,x ; kill robot 4
+ clr 40+2,x ; kill robot 5
+ clr 48+2,x ; kill robot 6
+ clr 56+2,x ; kill robot 6
+
+; only first shot
+ lda #0
+ sta 24+6
+ lda #$ff
+ sta 24+7
+
+
+
+
+
+
+* C8AB-C8B2     Array of byte-long offsets, telling which walls are to be
+*               drawn from each of the 8 possible starting points within
+*               the maze (0=up, 2=down, 4=to right, 6=to left).  The 8
+*               possible starting points are shown below:
+*
+*                   -100 -60 -20 +20 +60 +100
+*                     +---+---+---+---+---+ +96
+*                     |                   |
+*                     +   o   o   o   o   + +32
+*                     |                   |
+*                     +   o   o   o   o   + -32
+*                     |                   |
+*                     +---+---+---+---+---+ -96
+*
+* C8B5-C8C3     Array of masks (1 per quadrant) indicating which walls are
+*               present in the quadrant.  The mask values are:
+*
+*                     $01 = left wall
+*                     $02 = right wall
+*                     $04 = top wall
+*                     $08 = bottom wall
+*
+*               C8B5 refers to quadrant 0, C8B6 to quadrant 1, etc.
+
+
+
+
+
+; change maze, col detection
+; clr $C8B5
+; clr $C8B6
+; clr $C8B7
+; clr $C8B8
+; clr $C8B9
+
+; clr $C8Ba
+; clr $C8Bb
+; clr $C8Bc
+; clr $C8Bc
+; clr $C8Be
+
+; clr $C8Bf
+; clr $C8c0
+; clr $C8c1
+; clr $C8c2
+; clr $C8c3
+
+
+
+
+
+*               6       # of bullets robot can fire in a burst
+*               7       Delay between processing a robot (moving, firing, etc)
+ puls x,a
+
+ endif
+ endif
+
+
+
+
+
 * Set value used during robot seeding
                     tfr      u,d                          ; 
                     subd     #$C924                       ; 
@@ -1012,8 +1181,10 @@ P01D8:              lda      <$0F                         ; * Load button states
                     ldx      #$C89E                       ; 
                     ldb      #$03                         ; 
                     jsr      FireBullet                   ; 
+                    beq      FireError1
                     lda      #1 
                     sta      B_ORIGIN, x                  ; is a player bullet! 
+FireError1
                     lda      #SOUND_PLAYER_BULLET_START_BIT ; 
                     ora      <soundTypes                  ; 
                     sta      <soundTypes                  ; 
@@ -1292,6 +1463,8 @@ P0326:              lda      #$20                         ;
 *        pass).
 *    x = Bullet's starting position.
 *    C8EB = direction of travel for the bullet.
+* exit success Z = 0, error Z = 1
+* X = bullet structure
 FireBullet: 
                     stb      <$9D                         ; 
                     pshs     x,u                          ; 
@@ -1301,10 +1474,10 @@ FireBullet:
                     jsr      CheckForQuadrantEdgeCrossing ; 
                     puls     x                            ; * Don't fire if bullet will 
                     bitb     <$99                         ; * immediately hit a wall. 
-                    bne      P0369                        ; 
+                    bne      P0369_2                      ; 
                     jsr      newBulletObject              ;#isfunction 
                     cmpu     #OBJECT_LIST_COMPARE_ADDRESS 
-                    bls      P0369                        ; no bullet available 
+                    bls      P0369_2                        ; no bullet available 
                     clr      B_ORIGIN, u                  ; is a per default no player bullet! 
                     lda      <$F2                         ; 
                     sta      B_DIRECTION,u                ; * Store bullet's direction 
@@ -1319,8 +1492,11 @@ FireBullet:
                     suba     B_YPOS,u                     ; 
                     subb     B_XPOS,u                     ; 
                     std      B_HEIGHT,u                   ; 
-                    leax     ,u                           ; return to caller 
-P0369:              puls     u,pc                         ; 
+                    leax     ,u                           ; return to caller, this should always clear z flag
+P0369:              puls     u,pc  
+P0369_2             
+                    clra                                  ; set Z flag
+                    puls     u,pc  ; 
 *
 *        This is one of the 'indirect jump' functions.  It is the
 * active jump function when the player gets killed.  It
@@ -2333,6 +2509,7 @@ RobotFiring:
                     cmpa     #MAX_ROBOT_BULLETS 
                     bhs      notanotherbulletnow 
                     jsr      FireBullet                   ; 
+                    beq      FireError2
                     inc      robotShotCounter 
 notanotherbulletnow 
                     else     
@@ -2341,6 +2518,7 @@ notanotherbulletnow
                     lda      #SOUND_ROBOT_BULLET_START_BIT ; * Make a sound 
                     ora      <soundTypes                  ; 
                     sta      <soundTypes                  ; 
+FireError2
                     bra      CheckForRobotContactWithWall ; 
 
 *
@@ -2444,6 +2622,10 @@ GetNextRobotPtr:
                     ldx      #player_y                    ; 
                     ldy      #PlayerContactBounds         ; 
                     jsr      CheckForContact              ; 
+
+ if INVINCIBLE_ROBOT = 1
+                    bra      CheckForOttoStart            ; 
+ endif
                     if       DALEK = 1 
                     bhs      nextRobotProcessing 
                     else     
@@ -2700,6 +2882,11 @@ noUP_r
 noDOWN_r 
 verticalDone_r 
 alreadyDoneMapping 
+
+ if NO_OTTO = 1
+                    bra      noOttoCheck 
+ endif
+
 ; check bullet otto, for vtk!
                     ldd      <$2E 
                     bgt      noOttoCheck 
@@ -3405,11 +3592,13 @@ DefaultMazeWallsPerQuadrant:
                     DB       $04                          ; * top wall 
                     DB       $04                          ; * top wall 
                     DB       $06                          ; * top and right walls 
+
                     DB       $01                          ; * left wall 
                     DB       $00                          ; * no walls 
                     DB       $00                          ; * no walls 
                     DB       $00                          ; * no walls 
                     DB       $02                          ; * right wall 
+
                     DB       $09                          ; * bottom and left wall 
                     DB       $08                          ; * bottom wall 
                     DB       $08                          ; * bottom wall 
@@ -3856,7 +4045,8 @@ BulletToWallThresholds:
 * each point, the wall can go either upwards, downwards,
 * to the right or to the left.  The array at C8AB will be
 * filled with an integer index telling which walls are to
-* be drawn (0=up, 2=down, 4=to right, 6=to left).  The
+* be drawn (0=up, 2=down, 4=to right, 6=to left).  
+* The
 * array at C8B5 is a collection of bitmasks, indicating
 * which walls are present for each quadrant (there is one
 * entry in the array per quadrant).  The mask has the
@@ -3932,6 +4122,7 @@ P0F5E:              leax     1,x                          ;
                     bne      P0F0C                        ; 
                     jsr      checkPrison 
                     jsr      checkDoubleWalls 
+
                     rts                                   ; 
 
 *
@@ -4242,6 +4433,8 @@ lowerHorizontalDone
 ; I do not check for direction, I set all 4
 ; draws to a correct settings
 ; (0=up, 2=down, 4=to right, 6=to left)
+; YES 6 because these are ADDS! to a pointer to walls!
+; each point can only have ONE line!
 checkPrison 
                     ldb      $C8B5+6                      ; left most center section 
                     cmpb     #$f 
@@ -4249,7 +4442,7 @@ checkPrison
 ; change point 1 from left to up 
 ;
 ; change Quadrant info
-; update two quadrants, remove one wall
+; update two quadrants, collsion detection remove one wall
                     andb     #$f-4                        ; no top wall 
                     stb      $C8B5+6 
                     lda      $C8B5+1 
@@ -4263,7 +4456,7 @@ checkPrison
 ; change draw info, clockwise
                     lda      #2 
                     sta      $C8AB+1                      ; draw down 
-                    lda      #6 
+                    lda      #6 ; 
                     sta      $C8AB+5                      ; draw left 
                     lda      #0 
                     sta      $C8AB+4                      ; draw up 
