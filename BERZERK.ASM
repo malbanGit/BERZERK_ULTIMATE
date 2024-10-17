@@ -1,17 +1,13 @@
+BULLET_WALL_TEST    =        1                            ; debug switch for "wall testing" 
+
+; 15th October 2024
 ; This version fixes a bug, where robots could not shoot anymore.
 ; if this also fixes the bug, where once every few weeks a bullet may slip through a wall
 ; I don't know - but I doubt it.
 ; I have not found the condition when that occurs - as such I can not test it.
 
-BULLET_WALL_TEST = 0
-
-
-; still "beta" version, since no bug was found :-()
-
-; TEST (Thomas, shots go thru - perhaps only up to 6?
 ; Bug?
 ; shoot thru wall in some cases?
-;
 ;
 ; last changes
 ; Otto timing more dynamic, similar to version 1: 
@@ -44,7 +40,7 @@ BULLET_WALL_TEST = 0
 ; * when more than about 10 bullets are live -> than < 50Hz
 ; * Each shot in the air takes anbout 1200-1300 cycles
 ;------------------------------
-; idea, keep current "MapPointToQnMakeRel" in player/robot struct, than we do not have to calculate it x times EVERY turn
+; idea, keep current "MapPointToQnMakeRel" in player/robot struct, then we do not have to calculate it x times EVERY turn
 ; 
 
                     include  "macro.i"
@@ -53,22 +49,27 @@ USE_PB6             =        1
 
 DALEK               =        0 
 
- if BULLET_WALL_TEST = 1
-START_LEVEL = 25
-NO_OTTO             =        1
-ROBOT_BULLET_RESTRUCTION  =  1                            ; if "on" than only max no of bullets can be shot by robots                           
+ if  BULLET_WALL_TEST = 1 
+START_LEVEL         =        25 
+NO_OTTO             =        1 
+ROBOT_BULLET_RESTRUCTION  =  1                            ; if "on" than only max no of bullets can be shot by robots 
 MAX_ROBOT_BULLETS   =        10 
 INVINCIBLE          =        1                            ; only shots from robots 
 INVINCIBLE_ROBOT    =        1                            ; only robots 
- else
+FIXED_RANDOM        =        1                            ; only active in BULLET TEST 
+START_LIVES         =        10                           ; only active in BULLET TEST 
+SCORE_8000          =        1                            ; only active in BULLET TEST 
+UNIQUE_ROBOT_SETTING  =      1                            ; only active in BULLET TEST 
+ else  
 START_LEVEL         =        0 
 NO_OTTO             =        0 
-ROBOT_BULLET_RESTRUCTION  =  1                            ; if "on" than only max no of bullets can be shot by robots                           
+ROBOT_BULLET_RESTRUCTION  =  1                            ; if "on" than only max no of bullets can be shot by robots 
 MAX_ROBOT_BULLETS   =        10 
 INVINCIBLE          =        0                            ; only shots from robots 
 INVINCIBLE_ROBOT    =        0                            ; only robots 
- endif
+ endif  
 
+ORIGINAL_OTTO_APPEARANCE =   0
 BULLET_BULLET_THRESHOLD  =   1                            ; how far away can a bullet be from another bullet and still "hit" 
 MAX_BULLET_SPEED    =        6 
 
@@ -535,6 +536,7 @@ player_x            =        $C890
                     DB       "BERZERK ULTIMATE",$80,$00   ;
                     bra      startCartridge1 
 
+
                     ORG      $30 
                     fcb      "ThGS"                       ; magic handshake marker
 v4ecartversion      fdb      $0001                        ; I always have a version 
@@ -595,7 +597,7 @@ v4eStorageID                                              ;        4 bytes stora
 defaultValuesEeprom: 
                     db       "MAL", 0, "   100"
 copyDefaults 
-                    ldd      #$0100;#$0101                       ; vox enabled, color enabed 
+                    ldd      #$0100                       ;#$0101 ; vox enabled, color enabed 
                     std      optionsBlock 
                     std      optionsBlock+2 
                     std      optionsBlock+4 
@@ -617,6 +619,7 @@ copyMore:
                     bne      copyEvenMore 
                     rts      
 
+
 startCartridge1 
                     jsr      voxInit 
                     ldu      #aks_song 
@@ -625,10 +628,10 @@ startCartridge1
 startCartridge 
                     clr      isColoredMode 
                     clr      ignoreDs2431                 ; we assume a eEprom is available 
-                    if       USE_PB6 = 1 
-                    else     
+ if  USE_PB6 = 1 
+ else  ; USE_PB6 = 1 
                     inc      ignoreDs2431                 ; no, than set ignore flag 
-                    endif    
+ endif  ; else USE_PB6 = 1 
                     ldx      v4eStorageLoaded             ; check if v4e did load bytes from storage area 
                     bne      noScoreDefaults              ; if != 0, than yes -> jump 
                     bsr      copyDefaults                 ; initiate eEprom Highscore defaults 
@@ -736,39 +739,34 @@ StartNewTurn:
                     clr      currentMapVelocity 
                     clr      currentCombinedVelocityDirection 
 
- if BULLET_WALL_TEST = 1
- ldx #$C87D ; Vec_Random_Seed
-; lda #16
-; sta ,x+
-; lda #16
-; sta ,x+
-; lda #17
-; sta ,x+
+ if  BULLET_WALL_TEST = 1 
 
- if BULLET_WALL_TEST = 12
+ if  FIXED_RANDOM = 1 
+                    ldx      #$C87D                       ; Vec_Random_Seed 
+        
+                    lda      #16 
+                    sta      ,x+ 
+                    lda      #16 
+                    sta      ,x+ 
+                    lda      #17 
+                    sta      ,x+ 
+ endif  ; FIXED_RANDOM = 1 
+    
+ if  SCORE_8000 = 1 
+                    ldd      #$3830                       ; start with score of 8000 - max difficulty = 6 
+                    std      $C900 + 2                    ; player 0 highscore - the "middle" digits xx !! xx 
+        
+                    ldd      #$3030                       ; start with score of 8000 - max difficulty = 6 
+                    std      $C900 + 4                    ; player 0 highscore - the "middle" digits xx !! xx 
+ endif  ; SCORE_8000 = 1 
 
- lda #16
- sta ,x+
- lda #16
- sta ,x+
- lda #17
- sta ,x+
+                    ldx      #$C900                       ; 
+                    lda      #START_LIVES 
+                    sta      8,x                          ; * Set number of lives 
+                    lda      #START_LEVEL 
+                    sta      12,x                         ; levels played 
 
- ldx      #$C900                       ; 
- lda #10
- sta      8,x                          ; * Set number of lives 
- lda #25
- sta      12,x                         ; levels played 
- endif
-
- ldd #$3830 ; start with score of 8000 - max difficulty = 6
- std $C900 + 2 ; player 0 highscore - the "middle" digits xx !! xx
-
- ldd #$3030 ; start with score of 8000 - max difficulty = 6
- std $C900 + 4 ; player 0 highscore - the "middle" digits xx !! xx
-
-
- endif
+ endif  ;  BULLET_WALL_TEST = 1 
 
 
                     lda      #$3F                         ; * Set loop counter 
@@ -811,6 +809,7 @@ P0096:              jsr      waitrecal                    ;
                     jsr      init_music_buf               ; 
                     bra      P00B5                        ; 
 
+
 EnterNextMaze: 
                     jsr      dptoC8                       ; 
                     jsr      DetermineMazeWalls           ; 
@@ -830,7 +829,7 @@ P00B5:              lda      #$2A                         ;
 *
 * Based on the player's score, set the level of difficulty.
 * If the score >= 10,000, then bump the difficulty by alot.
-                    *        After that, compare the 'thousands' portion of the score
+* After that, compare the 'thousands' portion of the score
 * against the cutoff values in the table, and further bump
 * for each cutoff value surpassed.
                     lda      1,u                          ; * Check if score >= 10,000 
@@ -847,11 +846,11 @@ P00DC:              inc      <$83                         ;
                     bge      P00DC                        ; 
 *
 * Initialize the bonus score string.
-                    if       START_LEVEL = 0 
-                    else     
+ if  START_LEVEL = 0 
+ else  ; START_LEVEL = 0 
                     lda      #START_LEVEL 
                     sta      <$83 
-                    endif    
+ endif  ; else START_LEVEL = 0 
 P00E7:              ldx      #$C8D1                       ; 
                     jsr      set_dft_score                ; 
                     jsr      colorSetup 
@@ -872,13 +871,13 @@ P00F5:              asra                                  ;
                     bpl      P00FC                        ; 
                     clra                                  ; 
 P00FC:              sta      <$A7                         ; * Robot processing delay 
-                    if       DALEK = 1 
+ if  DALEK = 1 
                     clra     
                     sta      <$A7 
-                    endif    
+ endif  ; DALEK = 1 
 *
 * This seeds the robot structure array.  It attempts to
-*        'activate' a random number of robots.  If it fails to
+* 'activate' a random number of robots.  If it fails to
 * seed any robots, then it tries over again.
 * The robot array is an array of structures, located
 * at C91C-C973                                            ; there are 11 entries, each 8 bytes long.
@@ -944,100 +943,90 @@ P014C:              leax     2,x                          ;
 *               5       Delay before robot starts shooting (0-7)
 *               6       # of bullets robot can fire in a burst
 *               7       Delay between processing a robot (moving, firing, etc)
- if BULLET_WALL_TEST = 1
- if BULLET_WALL_TEST = 0
- pshs x,a
- ldx #0xC91C ; robot structure
- ;clr 2,x ; kill robot 0
-; clr 8+2,x ; kill robot 1  ***
-; clr 16+2,x ; kill robot 2
-; clr 24+2,x ; kill robot 3 bullets go THROUGH the player!!!
-
- lda #10
- adda 24+0,x
- sta 24+0,x
-
- lda #-1
- adda 24+1,x
- sta 24+1,x
-
-
- clr 32+2,x ; kill robot 4
- clr 40+2,x ; kill robot 5
- clr 48+2,x ; kill robot 6
- clr 56+2,x ; kill robot 6
-
-; only first shot
- lda #0
- sta 24+6
- lda #$ff
- sta 24+7
-
-
-
-
-
-
-* C8AB-C8B2     Array of byte-long offsets, telling which walls are to be
-*               drawn from each of the 8 possible starting points within
-*               the maze (0=up, 2=down, 4=to right, 6=to left).  The 8
-*               possible starting points are shown below:
-*
-*                   -100 -60 -20 +20 +60 +100
-*                     +---+---+---+---+---+ +96
-*                     |                   |
-*                     +   o   o   o   o   + +32
-*                     |                   |
-*                     +   o   o   o   o   + -32
-*                     |                   |
-*                     +---+---+---+---+---+ -96
-*
-* C8B5-C8C3     Array of masks (1 per quadrant) indicating which walls are
-*               present in the quadrant.  The mask values are:
-*
-*                     $01 = left wall
-*                     $02 = right wall
-*                     $04 = top wall
-*                     $08 = bottom wall
-*
-*               C8B5 refers to quadrant 0, C8B6 to quadrant 1, etc.
-
-
-
-
-
-; change maze, col detection
-; clr $C8B5
-; clr $C8B6
-; clr $C8B7
-; clr $C8B8
-; clr $C8B9
-
-; clr $C8Ba
-; clr $C8Bb
-; clr $C8Bc
-; clr $C8Bc
-; clr $C8Be
-
-; clr $C8Bf
-; clr $C8c0
-; clr $C8c1
-; clr $C8c2
-; clr $C8c3
-
-
-
-
-
-*               6       # of bullets robot can fire in a burst
-*               7       Delay between processing a robot (moving, firing, etc)
- puls x,a
-
- endif
- endif
-
-
-
+ if  BULLET_WALL_TEST = 1 
+ if  UNIQUE_ROBOT_SETTING = 1 
+                    pshs     x,a 
+                    ldx      #0xC91C                      ; robot structure 
+        ; clr 2,x ; kill robot 0
+        ; clr 8+2,x ; kill robot 1  ***
+        ; clr 16+2,x ; kill robot 2
+        ; clr 24+2,x ; kill robot 3 bullets go THROUGH the player!!!
+        
+                    lda      #10 
+                    adda     24+0,x 
+                    sta      24+0,x 
+        
+                    lda      #-1 
+                    adda     24+1,x 
+                    sta      24+1,x 
+        
+        
+                    clr      32+2,x                       ; kill robot 4 
+                    clr      40+2,x                       ; kill robot 5 
+                    clr      48+2,x                       ; kill robot 6 
+                    clr      56+2,x                       ; kill robot 6 
+        
+        ; only first shot
+                    lda      #0 
+                    sta      24+6,x 
+                    lda      #$ff 
+                    sta      24+7,x 
+        
+        * Info:
+        * C8AB-C8B2     Array of byte-long offsets, telling which walls are to be
+        *               drawn from each of the 8 possible starting points within
+        *               the maze (0=up, 2=down, 4=to right, 6=to left).  The 8
+        *               possible starting points are shown below:
+        *
+        *                   -100 -60 -20 +20 +60 +100
+        *                     +---+---+---+---+---+ +96
+        *                     |                   |
+        *                     +   o   o   o   o   + +32
+        *                     |                   |
+        *                     +   o   o   o   o   + -32
+        *                     |                   |
+        *                     +---+---+---+---+---+ -96
+        *
+        * C8B5-C8C3     Array of masks (1 per quadrant) indicating which walls are
+        *               present in the quadrant.  The mask values are:
+        *
+        *                     $01 = left wall
+        *                     $02 = right wall
+        *                     $04 = top wall
+        *                     $08 = bottom wall
+        *
+        *               C8B5 refers to quadrant 0, C8B6 to quadrant 1, etc.
+        
+        
+        
+        
+        
+        ; change maze, col detection
+        ; clr $C8B5
+        ; clr $C8B6
+        ; clr $C8B7
+        ; clr $C8B8
+        ; clr $C8B9
+        
+        ; clr $C8Ba
+        ; clr $C8Bb
+        ; clr $C8Bc
+        ; clr $C8Bc
+        ; clr $C8Be
+        
+        ; clr $C8Bf
+        ; clr $C8c0
+        ; clr $C8c1
+        ; clr $C8c2
+        ; clr $C8c3
+        
+        
+        *               6       # of bullets robot can fire in a burst
+        *               7       Delay between processing a robot (moving, firing, etc)
+                    puls     x,a 
+    
+ endif  ; UNIQUE_ROBOT_SETTING = 1 
+ endif  ; BULLET_WALL_TEST = 1 
 
 
 * Set value used during robot seeding
@@ -1071,7 +1060,7 @@ doMinOttoTime
 nominotto 
                     std      <$2E 
 ; ------ ORG
-                    if       ORIGINAL_OTTO_APPEARANCE = 1 
+ if  ORIGINAL_OTTO_APPEARANCE = 1 
                     lda      <$C7                         ; Number of robots initially seeded into the maze 
                     ldb      #$50                         ; 
                     mul                                   ; 
@@ -1082,7 +1071,7 @@ nominotto
                     lda      #$02                         ; 
                     clrb                                  ; 
 P017B:              std      <$2E                         ; 
-                    endif    
+ endif  ; ORIGINAL_OTTO_APPEARANCE = 1 
 ; ------ ORG
 * Main processing loop
                     clr      <mainJumpIndex               ; * Set jump idx to 'player is alive' 
@@ -1104,6 +1093,7 @@ P017F:
                     lda      <mainJumpIndex               ; 
                     jmp      [a,x]                        ; * (UNKNOWN JUMP) 
 
+
 MainJumpTable: 
                     DW       PlayerIsAlive                ; 
                     DW       PlayerHasLeftMaze            ; 
@@ -1120,8 +1110,9 @@ P01A4:              jsr      init_sound                   ;
 P01B0:              stx      <$2E                         ; 
                     bra      P017F                        ; 
 
+
 *
-*        This is one of the 'indirect jump' functions.  It is the
+* This is one of the 'indirect jump' functions.  It is the
 * active jump function while the player is alive.  It uses
 * the state of the buttons and the joystick to decide how
 * to draw the player.  It also attempts to detect whenever
@@ -1134,8 +1125,9 @@ PlayerIsAlive:
                     dec      <$F0                         ; 
                     bra      DoNotUpdatePlayerMovement    ; 
 
+
 *
-*        Based on the joystick and button values, the 'b' register
+* Based on the joystick and button values, the 'b' register
 * is set to the following mask:
 *
 *         ---------------------------------
@@ -1153,12 +1145,14 @@ ProcessJoystickAndButtons:
                     addb     #$08                         ; * Down 
                     bra      P01CC                        ; 
 
+
 P01C8:              beq      P01CC                        ; 
                     addb     #$04                         ; * Up 
 P01CC:              lda      <$1B                         ; * Get joystick left/right setting 
                     bpl      P01D4                        ; * 0=l/r neutral, -=left, +=right) 
                     addb     #$11                         ; * Left 
                     bra      P01D8                        ; 
+
 
 P01D4:              beq      P01D8                        ; 
                     addb     #$02                         ; * Right 
@@ -1181,14 +1175,15 @@ P01D8:              lda      <$0F                         ; * Load button states
                     ldx      #$C89E                       ; 
                     ldb      #$03                         ; 
                     jsr      FireBullet                   ; 
-                    beq      FireError1
+                    beq      FireError1 
                     lda      #1 
                     sta      B_ORIGIN, x                  ; is a player bullet! 
-FireError1
+FireError1 
                     lda      #SOUND_PLAYER_BULLET_START_BIT ; 
                     ora      <soundTypes                  ; 
                     sta      <soundTypes                  ; 
                     bra      DoNotUpdatePlayerMovement    ; 
+
 
 NoBtnsPressed: 
                     stb      <$F1                         ; * Save the joystick/button mask 
@@ -1209,6 +1204,7 @@ DoNotUpdatePlayerMovement:
                     clr      <$CF                         ; 
                     bra      CheckForPlayerLeavingQuadrant ; 
 
+
 *
 * If a button was pressed, then we know the player was
 * firing, so we can force his legs to the neutral position,
@@ -1224,6 +1220,7 @@ CheckIfFiring:
                     stb      <$CF                         ; * Set player's arms accordingly 
                     bra      CheckForPlayerLeavingQuadrant ; 
 
+
 *
 * We know that the player is on the move.  We will therefore
 * make his arms swing left and right, and we will draw his
@@ -1234,15 +1231,15 @@ CheckIfFiring:
 *
 * For the arms:
 *
-*        0 = 'arms to the right'
-*        2 = 'arms to the left'
+                    *        0 = 'arms to the right'
+                    *        2 = 'arms to the left'
 *
 * For the legs:
 *
-*        2 = 'running right with wide legs'
-*        4 = 'running right with close legs'
-*        6 = 'running left with wide legs'
-*        8 = 'running left with close legs'
+                    *        2 = 'running right with wide legs'
+                    *        4 = 'running right with close legs'
+                    *        6 = 'running left with wide legs'
+                    *        8 = 'running left with close legs'
 NotFiringButMoving: 
                     anda     #$10                         ; * a = joystick/button mask 
                     pshs     a                            ; 
@@ -1287,6 +1284,7 @@ CheckForPlayerLeavingQuadrant:
                     beq      PlayerHitWall                ; 
                     bra      ExitMaze                     ; 
 
+
 * Check for passing out the left door
 P0264:              cmpa     #$05                         ; * If quad 5, check for left door 
                     bne      P0274                        ; 
@@ -1297,6 +1295,7 @@ P0264:              cmpa     #$05                         ; * If quad 5, check f
                     beq      PlayerHitWall                ; 
                     bra      ExitMaze                     ; 
 
+
 * Check for passing out the right door
 P0274:              cmpa     #$09                         ; * If quad 9, check for right door 
                     bne      P0284                        ; 
@@ -1306,6 +1305,7 @@ P0274:              cmpa     #$09                         ; * If quad 9, check f
                     andb     #$02                         ; * Right wall (door) passed thru ? 
                     beq      PlayerHitWall                ; 
                     bra      ExitMaze                     ; 
+
 
 * Check for passing out the bottom door
 P0284:              cmpa     #$0C                         ; * If quad 12, check for bottom door 
@@ -1330,12 +1330,14 @@ ExitMaze:
                     sta      chickenFlag 
                     bra      speechMazeExitDone 
 
+
 noenemiesleft 
                     clr      chickenFlag 
                     jsr      get_random_a 
                     bmi      variant2 
                     FORCE_INIT_VOX_SPEECH_DIRECT  mustNotEscape1, pitchNormal0 
                     bra      speechMazeExitDone 
+
 
 variant2 
                     FORCE_INIT_VOX_SPEECH_DIRECT  mustNotEscape2, pitchNormal0 
@@ -1345,6 +1347,7 @@ speechMazeExitDone
                     inc      isScrolling 
                     jsr      initBulletList               ; remove all bullets 
                     jmp      MakeSoundThenGotoMainLoop    ; 
+
 
 *
 * The player died by walking into a wall                  ; change the
@@ -1357,6 +1360,7 @@ PlayerHitWall:
                     ldb      #$04                         ; 
                     stb      <mainJumpIndex               ; 
                     jmp      MakeSoundThenGotoMainLoop    ; 
+
 
 *
 * The player did not make contact with any walls, so all
@@ -1371,7 +1375,7 @@ NoContactWithWalls:
 * to see if the player has earned an extra life (awarded
 * for each 5000 points)                                   ; if so, then award the extra life,
 * and play a little tune.  The bonus check happens by
-*        comparing the thousands digit of the score to ascii '5'.
+                    *        comparing the thousands digit of the score to ascii '5'.
 CheckForExtraLifeBonus: 
                     ldx      <$80                         ; 
                     lda      8,x                          ; 
@@ -1418,13 +1422,14 @@ P0300:              rola                                  ;
                     jsr      add_d_to_x_in_bcd            ; 
 P0312:              jmp      MakeSoundThenGotoMainLoop    ; 
 
+
 *
 * DisplayLives()
 *
 * Entry:
 *   a = number of lives
 *
-*        Displays a string of 'little men', one for each live
+                    *        Displays a string of 'little men', one for each live
 * the user has.  The buffer into which the string is
 * placed starts at C8D8.
 *
@@ -1449,6 +1454,7 @@ P0326:              lda      #$20                         ;
                     lda      #$80                         ; 
                     sta      b,u                          ; 
                     rts                                   ; 
+
 
 *
 * FireBullet()
@@ -1477,7 +1483,7 @@ FireBullet:
                     bne      P0369_2                      ; 
                     jsr      newBulletObject              ;#isfunction 
                     cmpu     #OBJECT_LIST_COMPARE_ADDRESS 
-                    bls      P0369_2                        ; no bullet available 
+                    bls      P0369_2                      ; no bullet available 
                     clr      B_ORIGIN, u                  ; is a per default no player bullet! 
                     lda      <$F2                         ; 
                     sta      B_DIRECTION,u                ; * Store bullet's direction 
@@ -1492,13 +1498,13 @@ FireBullet:
                     suba     B_YPOS,u                     ; 
                     subb     B_XPOS,u                     ; 
                     std      B_HEIGHT,u                   ; 
-                    leax     ,u                           ; return to caller, this should always clear z flag
-P0369:              puls     u,pc  
-P0369_2             
-                    clra                                  ; set Z flag
-                    puls     u,pc  ; 
+                    leax     ,u                           ; return to caller, this should always clear z flag 
+P0369:              puls     u,pc 
+P0369_2 
+                    clra                                  ; set Z flag 
+                    puls     u,pc                         ; 
 *
-*        This is one of the 'indirect jump' functions.  It is the
+* This is one of the 'indirect jump' functions.  It is the
 * active jump function when the player gets killed.  It
 * will cause the player to be drawn with a variety of
 * intensities (simulating electrocution), and will update
@@ -1539,10 +1545,10 @@ noVoxAgain
                     clr      <$86                         ; 
                     dec      <$86                         ; 
 P039A: 
-                    if       NO_OTTO = 1 
-                    else     
+ if  NO_OTTO = 1 
+ else  ; NO_OTTO = 1 
                     jsr      CheckForOttoStart            ; 
-                    endif    
+ endif  ; else NO_OTTO = 1 
                     jsr      playGameSounds               ; 
                     jsr      waitrecal                    ; 
                     jsr      voxSentence 
@@ -1555,7 +1561,7 @@ P039A:
                     tst      8,x                          ; * had any lives left. 
                     bne      noHighscoreTest 
                     jsr      testHighScore 
-; sjksg
+
 noHighscoreTest 
 * Reset player's starting positions
                     ldx      #$C900                       ; * Player 1 
@@ -1576,6 +1582,7 @@ P03D0:              tst      8,x                          ; * Does this player h
                     beq      P03D9                        ; 
                     stx      <$80                         ; * Yep; so let this player play 
                     jmp      StartNewTurn 
+
 
 P03D9:              ldx      <$80                         ; * Nope; so see if original player 
                     tst      8,x                          ; * had any lives left. 
@@ -1646,6 +1653,7 @@ DisplayHighScore:
                     inc      <$9F                         ; * Turn on the Easter egg 
                     bra      P0453                        ; 
 
+
 ; TODO timing loop
 P044D:              lda      <$0F                         ; * Button states 
                     anda     #$f 
@@ -1655,6 +1663,7 @@ P0453:              ldx      <$9D                         ; * Decrement timer
                     bne      LoopWaitingForRestart        ; 
 ttetet 
                     jmp      start_of_OS_ROM              ; 
+
 
 HumanoidString: 
                     DB       "GOT "
@@ -1704,8 +1713,8 @@ DrawMaze:
                     tfr      a,a 
                     DOUBLE_DRAW_OUTER_ZERO  $6014, $50, $c0 
                     tfr      a,a 
-                    if       DALEK = 1 
-                    else     
+ if  DALEK = 1 
+ else  ; DALEK = 1 
 ; inner walls
 * Draw the 8 inner walls
                     lda      #$08                         ; 
@@ -1740,7 +1749,7 @@ LF3F4_1_r2
                     STa      VIA_cntl                     ;/BLANK low and /ZERO low 
                     dec      -15,s                        ; 
                     bne      P04BC_1                      ; 
-                    endif    
+ endif  ; else DALEK = 1 
 ; closed door
 * Block off one door, if signaled to do so
                     ldu      #BlockedDoorVectorTable      ; 
@@ -1773,6 +1782,7 @@ LF3F4_1_r
                     STa      VIA_cntl                     ;/BLANK low and /ZERO low 
                     jmp      DisplayBonusString 
 
+
 doOldWay 
                     lda      currentMazeColor 
                     jsr      intensity_to_a 
@@ -1793,8 +1803,8 @@ P049E:              lda      #$01                         ; * Vector count - 1
                     dec      -15,s                        ; 
                     bne      P049E                        ; 
 * Draw the 8 inner walls
-                    if       DALEK = 1 
-                    else     
+ if  DALEK = 1 
+ else  ; DALEK = 1 
                     clr      $C823                        ; 
                     lda      #$08                         ; 
                     sta      -15,s                        ; * Loop counter 
@@ -1809,7 +1819,7 @@ P04BC:              ldb      ,y+                          ;
                     leau     2,u                          ; * Process next segment 
                     dec      -15,s                        ; 
                     bne      P04BC 
-                    endif                                 ; 
+ endif ; else DALEK = 1 
 * Block off one door, if signaled to do so
                     ldu      #BlockedDoorVectorTable      ; 
                     lda      $C8C6                        ; * Door to block, if any 
@@ -1822,16 +1832,16 @@ P04BC:              ldb      ,y+                          ;
 * If the player killed all of the robots, then display
 * a message telling them they got a bonus.  We can tell
 * if we need to display the bonus string, by checking to
-*        to see if the second digit in the bonus string is not '0'
-*        (" x0" is the default, where 'x' is initially set to
+* to see if the second digit in the bonus string is not '0'
+* (" x0" is the default, where 'x' is initially set to
 * a space, but will be a digit when the bonus string has
 * been assigned a value).
 *
-*        BUG ALERT: when the above check occurs, the 'ble' command
-*        really should be a 'blt'!!  This explains why
+* BUG ALERT: when the above check occurs, the 'ble' command
+* really should be a 'blt'!!  This explains why
 * when a player clears a maze containing 10
 * robots, the bonus string was not displayed.
-*        In this case the bonus string is "   100",
+* In this case the bonus string is "   100",
 * and this fails the above check!
 DisplayBonusString: 
                     lda      currentStringColor 
@@ -1863,6 +1873,7 @@ DrawActivePieces:
                     ldd      #$9840                       ; * Player 2 rel y & rel x 
                     jsr      print_at_d                   ; 
                     bra      DrawActiveBullets            ; 
+
 
 P0510:              ldd      #$98A0                       ; * Player 1 rel y & rel x 
                     jsr      print_at_d                   ; 
@@ -1910,6 +1921,7 @@ skipUpdate
                     STb      <VIA_shift_reg               ;Clear shift register (blank output) 
                     STA      VIA_cntl                     ;/BLANK low and /ZERO low 
                     jmp      drawNextBullet 
+
 
 ; -2
                     db       -90 
@@ -1973,6 +1985,7 @@ P053E_o
                     lblt     DoNoDrawing_o1               ; 
                     bra      P08F7_o1                     ; 
 
+
 P08E6_o1:           tsta                                  ; 
                     lbne     DoNoDrawing_o1               ; 
                     tst      <$Ed                         ; 
@@ -1997,6 +2010,7 @@ P08F7_o1:           ldb      1,y                          ;
                     cmpa     <$E8                         ; 
                     blt      DoNoDrawing_o1               ; 
                     bra      P0924_o1                     ; 
+
 
 P0913_o1:           tsta                                  ; 
                     bne      DoNoDrawing_o1               ; 
@@ -2038,12 +2052,14 @@ P058F_o:
                     lbne     P053E_o                      ; 
                     jmp      P05C6                        ; 
 
+
 DoNoDrawing_o1: 
                     jsr      dptoD0                       ; 
                     leay     8,y                          ; 
                     dec      -15,s                        ; 
                     lbne     P053E_o                      ; 
                     jmp      P05C6                        ; 
+
 
 * Process next robot structure
 processNextRobot_o 
@@ -2052,11 +2068,13 @@ processNextRobot_o
                     lbne     P053E_o                      ; 
                     jmp      P05C6 
 
+
 processNextRobot_short 
                     leay     8,y                          ; 
                     dec      -15,s                        ; 
                     bne      P053E                        ; 
                     jmp      P05C6 
+
 
 DrawAliveRobots: 
                     lda      $C8C7                        ; * Number of robots 
@@ -2106,6 +2124,7 @@ P058F:              leay     8,y                          ;
                     dec      -15,s                        ; 
                     lbne     P053E                        ; 
                     jmp      P05C6                        ; 
+
 
 *
 * When a robot is killed, it is replaced by a cloud of
@@ -2160,10 +2179,11 @@ P05C6:              tst      $C82E                        ;
                     bne      DrawThePlayer                ; 
                     tst      $C82F                        ; 
                     bne      DrawThePlayer                ; 
-                    if       NO_OTTO = 1 
+ if  NO_OTTO = 1 
                     bra      DrawThePlayer                ; 
 
-                    endif    
+
+ endif  ; NO_OTTO = 1 
                     lda      #$14                         ; 
                     sta      drawScale                    ; * Drawing intensity 
                     ldx      #next_pt                     ; 
@@ -2196,6 +2216,7 @@ drawManRunning
                     ldu      b,u                          ; 
                     bra      manDisplayDone 
 
+
 drawManStand 
                     ldb      $C8CF                        ; 
                     ldu      #manStandingList 
@@ -2224,6 +2245,7 @@ drawManRunning1
                     ldu      b,u                          ; 
                     bra      manDisplayDone1 
 
+
 drawManStand1 
                     ldb      $C8CF                        ; 
                     ldu      #manStandingList 
@@ -2232,7 +2254,9 @@ manDisplayDone1
                     MY_MOVE_TO_B_END  
                     jmp      drawSmart 
 
+
 exitHere            rts      
+
 
 DrawPlayerFunctionSmart 
                     ldb      $C8CE                        ; * Running or standing still? 
@@ -2242,12 +2266,14 @@ drawManRunning2
                     ldu      b,u                          ; 
                     bra      manDisplayDone2 
 
+
 drawManStand2 
                     ldb      $C8CF                        ; 
                     ldu      #manStandingList 
                     ldu      b,u                          ; * Player is shooting 
 manDisplayDone2 
                     jmp      drawSmart 
+
 
 DrawThePlayerWithScrolling 
                     ldx      #DrawPlayerFunctionSmart     ; 
@@ -2257,12 +2283,13 @@ DrawThePlayerWithScrolling
                     ldu      #player_y                    ; * Player's position 
                     jmp      DrawWithPossibleScrolling    ; * Draw the player 
 
+
 *
 * DisplayBothPlayersScore()
 *
 * This displays player 1's score, and if 2 players are
 * playing, then player 2's score also.
-;DisplayBothPlayersScore: 
+; DisplayBothPlayersScore: 
 ;                    lda      currentStringColor 
 ;                    _INTENSITY_A  
 ;                    ldd      #$7086                       ; * rel y & rel x 
@@ -2286,6 +2313,7 @@ firstPlayer
                     jsr      print_at_d                   ; 
                     rts      
 
+
 possiblyTwoPlayers 
                     lda      $c881 
                     beq      firstPlayer 
@@ -2293,6 +2321,7 @@ possiblyTwoPlayers
                     ldu      #$C90E +1                    ; * player 2 structue 
                     jsr      print_at_d                   ; 
                     rts                                   ; 
+
 
                     direct   $c8 
 *
@@ -2343,16 +2372,19 @@ DetermineDirectionToMove3:
                     orb      #$04                         ; 
                     bra      P0F80_v                      ; 
 
+
 noNeg_d2 
                     cmpa     #BULLET_SHOT_THRESHOLD 
                     bls      yPosNearlySame 
                     orb      #$04                         ; 
                     bra      P0F80_v                      ; 
 
+
 yPosNearlySame 
 P0F7A_v: 
                     orb      #$20                         ; 
                     bra      P0F80_v                      ; 
+
 
 P0F7E_v: 
                     bpl      noNeg_d1 
@@ -2362,6 +2394,7 @@ P0F7E_v:
                     orb      #$08                         ; 
                     nega     
                     bra      P0F80_v 
+
 
 noNeg_d1 
                     cmpa     #BULLET_SHOT_THRESHOLD 
@@ -2384,10 +2417,12 @@ noNeg_d4
                     orb      #$02                         ; 
                     rts                                   ; 
 
+
 P0F92_v: 
 xPosNearlySame 
                     orb      #$20                         ; 
                     rts                                   ; 
+
 
 P0F95_v: 
                     bpl      noNeg_d3 
@@ -2397,6 +2432,7 @@ noNeg_d3
                     bls      xPosNearlySame 
                     orb      #$01                         ; 
                     rts                                   ; 
+
 
 *
 * ProcessAndUpdateRobots()
@@ -2430,11 +2466,11 @@ ProcessAndUpdateRobots:
                     clr      <$9D                         ; 
                     lda      <$A9                         ; 
 P0654:              ldu      #$C91C                       ; * Ptr to robot array 
-                    if       DALEK = 1 
+ if  DALEK = 1 
 startProcessingThisRobot 
                     tst      2,u                          ; * Skip this robot if he is dead or 
                     lbpl     nextRobotProcessing          ; * not displayed. 
-                    else     
+ else  ; DALEK = 1 
                     leau     a,u                          ; 
                     adda     #$08                         ; 
                     cmpa     <$AA                         ; 
@@ -2443,18 +2479,19 @@ startProcessingThisRobot
                     beq      P0666                        ; 
                     jmp      CheckForOttoStart            ; 
 
+
 P0666:              inc      <$9D                         ; 
                     clra                                  ; 
 P0669:              sta      <$A9                         ; 
                     tst      2,u                          ; * Skip this robot if he is dead or 
                     bpl      P0654                        ; * not displayed. 
-                    endif    
+ endif  ; else DALEK = 1 
                     tst      7,u                          ; 
-                    if       DALEK = 1 
+ if  DALEK = 1 
                     lbne     nextRobotProcessing          ; * Check processing delay 
-                    else     
+ else  ; DALEK = 1 
                     lbne     CheckForOttoStart            ; * Check processing delay 
-                    endif    
+ endif  ; else DALEK = 1 
                     lda      <$A7                         ; 
                     sta      7,u                          ; * Reset the processing delay value 
                     lda      5,u                          ; * See if the robot can now start 
@@ -2488,6 +2525,7 @@ PrepareToFire:
                     sta      5,u                          ; * Reset shooting delay 
                     bra      RobotMoving                  ; 
 
+
 *
 * The robot is firing.  Determine the starting position for
 * the bullet, the direction and the velocity.  Lastly, make
@@ -2504,22 +2542,24 @@ RobotFiring:
                     std      <$9E                         ; 
                     ldx      #$C89E                       ; * Starting position 
                     ldb      <$84                         ; * Velocity factor 
-                    if       ROBOT_BULLET_RESTRUCTION = 1 
+ if  ROBOT_BULLET_RESTRUCTION = 1 
                     lda      robotShotCounter 
                     cmpa     #MAX_ROBOT_BULLETS 
                     bhs      notanotherbulletnow 
                     jsr      FireBullet                   ; 
-                    beq      FireError2
+                    beq      FireError2 
                     inc      robotShotCounter 
 notanotherbulletnow 
-                    else     
+ else  ; ROBOT_BULLET_RESTRUCTION = 1 
                     jsr      FireBullet                   ; 
-                    endif    
+                    beq      FireError2 
+ endif  ; else ROBOT_BULLET_RESTRUCTION = 1 
                     lda      #SOUND_ROBOT_BULLET_START_BIT ; * Make a sound 
                     ora      <soundTypes                  ; 
                     sta      <soundTypes                  ; 
-FireError2
+FireError2 
                     bra      CheckForRobotContactWithWall ; 
+
 
 *
 * The robot is moving, and not firing.  Update the robot's
@@ -2554,6 +2594,7 @@ RobotMoving:
                     bgt      AttemptToAvoidWalls          ; 
                     bra      MoveInCurrentDirection       ; 
 
+
 *
 * Take the mask indicating which walls are present in this
 * quadrant, and complement it, to determine the direction
@@ -2567,7 +2608,7 @@ AttemptToAvoidWalls:
                     sta      3,u                          ; 
                     beq      CheckForRobotContactWithWall ; * Enclosed room 
 *
-*        Don 't update the robot's direction of travel, but
+* Don 't update the robot's direction of travel, but
 * instead, just keep moving it in its current direction.
 MoveInCurrentDirection: 
                     leax     ,u                           ; * Get current position 
@@ -2613,24 +2654,25 @@ GetNextRobotPtr:
                     bne      P072B                        ; 
 * See if robot collided with the player
                     lda      2,u                          ; 
-                    if       DALEK = 1 
+ if  DALEK = 1 
                     bpl      nextRobotProcessing 
-                    else     
+ else  ; DALEK = 1 
                     bpl      CheckForOttoStart            ; * Skip if robot is dead 
-                    endif    
+ endif  ; else DALEK = 1 
                     ldd      ,u                           ; 
                     ldx      #player_y                    ; 
                     ldy      #PlayerContactBounds         ; 
                     jsr      CheckForContact              ; 
 
- if INVINCIBLE_ROBOT = 1
+ if  INVINCIBLE_ROBOT = 1 
                     bra      CheckForOttoStart            ; 
- endif
-                    if       DALEK = 1 
+
+ endif  ; INVINCIBLE_ROBOT = 1 
+ if  DALEK = 1 
                     bhs      nextRobotProcessing 
-                    else     
+ else  ; DALEK = 1 
                     bhs      CheckForOttoStart            ; 
-                    endif    
+ endif  ; else DALEK = 1 
                     tfr      u,x                          ; 
                     jsr      CreditPlayerWithDeadRobot    ; 
                     lda      #$04                         ; * Tag player as dead 
@@ -2639,21 +2681,21 @@ GetNextRobotPtr:
                     ora      <soundTypes                  ; 
                     sta      <soundTypes                  ; * Make some sound 
 * Wait for counters to expire, before starting Otto
-                    if       DALEK = 1 
+ if  DALEK = 1 
 nextRobotProcessing 
                     leau     8,u                          ; * Get pointer to next robot 
                     cmpu     #$C91C + 11 *8 
                     lblo     startProcessingThisRobot 
-                    endif    
+ endif  ; DALEK = 1 
 CheckForOttoStart: 
                     tst      <$2E                         ; 
                     bne      P07ED                        ; 
                     tst      <$2F                         ; 
                     bne      P07ED                        ; 
-                    if       NO_OTTO = 1 
+ if  NO_OTTO = 1 
                     bra      P07ED 
 
-                    endif    
+ endif  ; NO_OTTO = 1 
                     lda      <$26                         ; 
                     bita     #$03                         ; 
                     bne      P079B                        ; 
@@ -2711,6 +2753,7 @@ P07E7:              leax     8,x                          ;
                     dec      <$9D                         ; 
                     bne      P07D9                        ; 
 P07ED:              rts                                   ; 
+
 
 OttoBounceOffsets: 
                     DB       $00                          ; 
@@ -2785,6 +2828,7 @@ noOttoAdd
 exitBulletProcessing2 
                     rts      
 
+
 ProcessAndUpdateBullets: 
                     ldu      bullet_objects_head 
 processNextBullet 
@@ -2836,12 +2880,14 @@ processNextBullet
                     std      currentPlayerMapVelocity+2 
                     bra      horizontalDone_r 
 
+
 horizontalNotDone_r 
                     ldd      RobotContactBounds+2 
                     std      currentRobotMapVelocity+2 
                     ldd      PlayerContactBounds2+2 
                     std      currentPlayerMapVelocity+2 
                     bra      horizontalDone_r 
+
 
 noLeft_r 
                     bitb     #2                           ; RIGHT 
@@ -2863,12 +2909,14 @@ horizontalDone_r
                     std      currentPlayerMapVelocity 
                     bra      verticalDone_r 
 
+
 noDOWN_verticalNotDone_r 
                     ldd      RobotContactBounds 
                     std      currentRobotMapVelocity 
                     ldd      PlayerContactBounds2 
                     std      currentPlayerMapVelocity 
                     bra      verticalDone_r 
+
 
 noUP_r 
                     bitb     #8                           ; DOWN 
@@ -2883,9 +2931,10 @@ noDOWN_r
 verticalDone_r 
 alreadyDoneMapping 
 
- if NO_OTTO = 1
+ if  NO_OTTO = 1 
                     bra      noOttoCheck 
- endif
+
+ endif  
 
 ; check bullet otto, for vtk!
                     ldd      <$2E 
@@ -2897,6 +2946,7 @@ alreadyDoneMapping
                     bhs      noOttoCheck                  ; 
                     jsr      removeBullet 
                     jmp      processNextBullet 
+
 
 OttoContactBounds: 
                     DB       $05                          ; 
@@ -2916,6 +2966,7 @@ P0874:              lda      2,x                          ; * Skip robot if alre
                     jsr      CreditPlayerWithDeadRobot    ; 
                     jsr      removeBullet 
                     jmp      processNextBullet 
+
 
 checkNextRobot: 
                     leax     8,x                          ; 
@@ -2959,6 +3010,7 @@ noNegy
                     bhi      nextBulletCheck 
                     bra      removeDoubleBullets 
 
+
 verticalDetection 
                                                           ; x pos must be nearly the same 
                     lda      B_XPOS, x 
@@ -2980,6 +3032,7 @@ noNeg2
                     bhi      nextBulletCheck 
 ; bullets hit!
                     bra      removeDoubleBullets 
+
 
 horizontalDetection 
                                                           ; y pos must be nearly the same 
@@ -3009,17 +3062,20 @@ removeDoubleBullets
                     jsr      removeBullet 
                     jmp      processNextBullet 
 
+
 nextBulletCheck 
                     ldx      B_NEXT_OBJECT,x 
                     cmpx     #OBJECT_LIST_COMPARE_ADDRESS 
                     lbhi     processnextbulletbullettest 
                     bra      checkPlayerHitDone 
 
+
 checkPlayerHit 
-                    if       INVINCIBLE = 1 
+ if  INVINCIBLE = 1 
                     bra      checkPlayerHitDone 
 
-                    endif    
+
+ endif  
 * See if bullet hit the player
                     ldd      B_YPOS_TAIL,u                ; * Position of bullet's head 
                     ldx      #player_y                    ; * Check for contact with player ? 
@@ -3034,6 +3090,7 @@ checkPlayerHit
                     jsr      removeBullet 
                     jmp      processNextBullet 
 
+
 checkPlayerHitDone 
 P08B2: 
 * Update the delta between the head and tail of bullet
@@ -3045,8 +3102,10 @@ P08B6:              ldd      B_YPOS_TAIL,u                ;
                     ldu      B_NEXT_OBJECT,u 
                     jmp      processNextBullet 
 
+
 exitBulletProcessing: 
                     rts                                   ; 
+
 
 *
 * DrawWithPossibleScrolling()
@@ -3081,6 +3140,7 @@ DrawWithPossibleScrolling:
                     blt      DoNoDrawing                  ; 
                     bra      P08F7                        ; 
 
+
 P08E6:              tsta                                  ; 
                     bne      DoNoDrawing                  ; 
                     tst      <$Ed                         ; 
@@ -3106,6 +3166,7 @@ P08F7:              ldb      1,u                          ;
                     blt      DoNoDrawing                  ; 
                     bra      P0924                        ; 
 
+
 P0913:              tsta                                  ; 
                     bne      DoNoDrawing                  ; 
                     tst      <$Ed                         ; 
@@ -3124,6 +3185,7 @@ P0924:              jsr      dptoD0                       ;
                     jsr      [drawFunction]               ; * Jump to drawing function 
 DoNoDrawing: 
                     jmp      dptoD0                       ; 
+
 
 *
 * CalculateUpdatedPosition()
@@ -3165,6 +3227,7 @@ AddVelocityToEndpoints:
                     nega                                  ; * Going left; - velocity 
                     bra      P0960                        ; 
 
+
 P095B:              bitb     #$02                         ; 
                     bne      P0960                        ; * Going right; + velocity 
                     clra                                  ; * No movement in x direction 
@@ -3176,13 +3239,14 @@ P0960:              adda     1,x                          ; * Update the x posit
                     nega                                  ; * Going down; - velocity 
                     bra      P0972                        ; 
 
+
 P096D:              bitb     #$04                         ; 
                     bne      P0972                        ; * Going up; + velocity 
                     clra                                  ; * No movement in y direction 
 P0972:              adda     ,x                           ; * Update the y position 
                     puls     b,pc                         ; 
 *
-*        This is one of the 'indirect jump' functions.  It is the
+                    *        This is one of the 'indirect jump' functions.  It is the
 * active jump function when the player successfully leaves
 * a maze.  When the player exits from a door in the maze,
 * the maze will then scroll off in the opposite direction ;
@@ -3204,21 +3268,25 @@ PlayerHasLeftMaze:
                     inc      <$E8                         ; 
                     bra      P09B2                        ; 
 
+
 P0986:              bitb     #$02                         ; 
                     beq      P098E                        ; 
                     dec      <$E8                         ; * Right door, so scroll left 
                     bra      P09A0                        ; 
+
 
 P098E:              bitb     #$04                         ; 
                     beq      P0996                        ; 
                     dec      <$E7                         ; * Top door, so scroll down 
                     bra      P09A0                        ; 
 
+
 P0996:              bitb     #$08                         ; 
                     beq      P09A0                        ; 
                     clr      <$Ed                         ; * Bottom door, so scroll up 
                     inc      <$E7                         ; 
                     bra      P09B2                        ; 
+
 
 *
 * This block checks to see if we have finished scrolling,
@@ -3232,9 +3300,11 @@ P09A0:              bmi      SaveScrollingDeltas          ;
                     ldb      #$A5                         ; * Yes; start at left edge 
                     bra      P09C2                        ; 
 
+
 P09AC:              lda      #$B0                         ; * Exited thru top door 
                     ldb      <player_x                    ; * Start at bottom 
                     bra      P09C2                        ; 
+
 
 P09B2:              bpl      SaveScrollingDeltas          ; 
                     bitb     #$08                         ; * Exited thru bottom door? 
@@ -3242,6 +3312,7 @@ P09B2:              bpl      SaveScrollingDeltas          ;
                     lda      #$54                         ; * Yes; start at top edge 
                     ldb      <player_x                    ; 
                     bra      P09C2                        ; 
+
 
 P09BE:              lda      <player_y                    ; * Exited thru left door 
                     ldb      #$5B                         ; * Start at right edge 
@@ -3260,6 +3331,7 @@ P09C2:              ldx      <$80                         ;
 P09D9:              sta      <$A8                         ; 
                     jmp      EnterNextMaze                ; 
 
+
 *
 * This block saves the x and y delta values, which are
 * then used by the drawing function, to offset all
@@ -3276,6 +3348,7 @@ SaveScrollingDeltas:
                     rola                                  ; 
                     std      <$Eb                         ; * Save 16-bit x delta 
                     jmp      MakeSoundThenGotoMainLoop    ; 
+
 
 *
 * DrawPlayerFunction()
@@ -3653,8 +3726,10 @@ CheckForContact:
                     orcc     #$01                         ; 
                     rts                                   ; 
 
+
 P0D32:              andcc    #$FE                         ; 
                     rts                                   ; 
+
 
 *
 * The following 3 tables define the bounding box around
@@ -3716,6 +3791,7 @@ playGameSounds:
                     beq      sound_noPlayerDeathContinue  ; 
                     jmp      sound_continuePlayerDeath    ; 
 
+
 sound_noPlayerDeathContinue: 
                     bita     #SOUND_PLAYER_DEATH_START_BIT ; IS PLAYER DEAD? (sound) 
 P0D56:              beq      sound_noPlayerDeathStart     ; 
@@ -3724,11 +3800,13 @@ P0D56:              beq      sound_noPlayerDeathStart     ;
                     stb      <soundTypes                  ; 
                     jmp      sound_initPlayerDeath        ; 
 
+
 sound_noPlayerDeathStart: 
 ; ROBOT DEATH SOUND CHECK
                     bita     #SOUND_ROBOT_DEATH_CONTNUE_BIT ; 
                     beq      sound_noRobotDeathContinue   ; 
                     jmp      sound_continueRobotDeath     ; 
+
 
 sound_noRobotDeathContinue: 
                     bita     #SOUND_ROBOT_DEATH_START_BIT ; 
@@ -3737,6 +3815,7 @@ sound_noRobotDeathContinue:
                     sta      <soundCounter                ; 
                     stb      <soundTypes                  ; 
                     jmp      sound_initRobotDeath         ; 
+
 
 sound_noRobotDeathStart: 
 ; ROBOT BULLET SOUND CHECK
@@ -3747,10 +3826,12 @@ sound_noRobotDeathStart:
                     stb      <soundTypes                  ; 
                     jmp      sound_initRobotBullet        ; 
 
+
 sound_noRobotBulletStart: 
                     bita     #SOUND_ROBOT_BULLET_CONTINUE_BIT ; 
                     beq      sound_noRobotBulletContinue  ; 
                     jmp      sound_continueRobotBullet    ; 
+
 
 sound_noRobotBulletContinue: 
 ; PLAYER BULLET SOUND CHECK
@@ -3761,10 +3842,12 @@ sound_noRobotBulletContinue:
                     stb      <soundTypes                  ; 
                     jmp      sound_initPlayerBullet       ; 
 
+
 sound_noPlayerBulletStart: 
                     bita     #SOUND_PLAYER_BULLET_CONTINUE_BIT ; 
                     beq      sound_noPlayerBulletContinue ; 
                     jmp      sound_continuePlayerBullet   ; 
+
 
 sound_noPlayerBulletContinue: 
 ; OTTO SOUND CHECK
@@ -3773,13 +3856,16 @@ sound_noPlayerBulletContinue:
                     beq      sound_noOttoContinue         ; 
                     jmp      sound_ottoContinue           ; 
 
+
 sound_noOttoContinue: 
                     bita     #SOUND_OTTO_START_BIT        ; 
                     beq      sound_noOttoStart            ; 
                     jmp      sound_initOtto               ; 
 
+
 sound_noOttoStart: 
                     rts                                   ; 
+
 
 sound_initRobotBullet: 
                     ldd      #$0039                       ; 
@@ -3789,6 +3875,7 @@ sound_initRobotBullet:
                     ldd      #$0100                       ; 
                     std      <$47                         ; 
                     bra      P0DD8                        ; 
+
 
 sound_continueRobotBullet: 
                     ldd      <$4B                         ; 
@@ -3811,6 +3898,7 @@ sound_exitRoutined:
                     lda      #$38                         ; enable all tone channels 
                     bra      P0DE8                        ; 
 
+
 sound_clearRegs: 
                     lda      #$3F                         ; disable all tone & noise channels 
                     clr      <soundTypes                  ; clear current played type 
@@ -3818,6 +3906,7 @@ sound_clearRegs:
 P0DE8: 
                     sta      <PSG_Shadow_REG7_Enable      ; 
                     rts                                   ; 
+
 
 sound_initPlayerDeath: 
                     ldd      #$00C0                       ; 
@@ -3830,6 +3919,7 @@ sound_continuePlayerDeath:
                     ldd      <$4B                         ; 
                     addd     #$0010                       ; 
                     bra      P0E04                        ; 
+
 
 P0DFF:              ldd      <$4B                         ; 
                     subd     #$0013                       ; 
@@ -3850,6 +3940,7 @@ P0E0F:              stb      muck_6a                      ;
                     lda      #$2C                         ; 
                     jmp      sound_exitRoutined           ; 
 
+
 sound_initRobotDeath: 
                     ldd      #$0030                       ; 
                     std      <PSG_Shadow_REG1_ACourse_and_Fine ; 
@@ -3859,6 +3950,7 @@ sound_initRobotDeath:
                     std      <PSG_Shadow_REG5_CCourse_and_Fine ; 
                     rts                                   ; 
 
+
 sound_continueRobotDeath: 
                     ldx      #PSG_Shadow_REG1_ACourse_and_Fine ; 
                     bsr      robotDeathSoundTriller       ; 
@@ -3867,6 +3959,7 @@ sound_continueRobotDeath:
                     bsr      robotDeathSoundTriller       ; 
                     lda      #$18                         ; max "length" of sound 
                     jmp      sound_exitRoutined           ; 
+
 
 *
 * This function appears to do some random mucking relating
@@ -3881,10 +3974,12 @@ robotDeathSoundTriller:
                     addd     #$0023                       ; 
                     bra      P0E53                        ; 
 
+
 P0E4E:              ldd      ,x                           ; 
                     subd     #$0010                       ; 
 P0E53:              std      ,x                           ; 
                     rts                                   ; 
+
 
 *
 * This function appears to do some random mucking relating
@@ -3899,6 +3994,7 @@ sound_initPlayerBullet:
                     ldd      #$0040                       ; 
                     std      <$47                         ; 
                     rts                                   ; 
+
 
 *
 * This function appears to do some random mucking relating
@@ -3915,6 +4011,7 @@ sound_continuePlayerBullet:
                     std      <$4B                         ; 
                     bra      P0E86                        ; 
 
+
 P0E7F:              ldd      <$4B                         ; 
                     addd     #$001A                       ; 
                     std      <$4B                         ; 
@@ -3926,6 +4023,7 @@ P0E86:              ldd      <$49                         ;
                     std      <$47                         ; 
                     lda      #$1C                         ; 
                     jmp      sound_exitRoutined           ; 
+
 
 sound_initOtto: 
                     lda      #SOUND_OTTO_CONTINUE_BIT     ; 
@@ -3950,6 +4048,7 @@ P0EBC:              ldd      <$4B                         ;
                     std      <$49                         ; 
                     lda      #$18                         ; 
                     jmp      sound_exitRoutined           ; 
+
 
 *
 * CheckForQuadrantEdgeCrossing()
@@ -3990,6 +4089,7 @@ CheckForQuadrantEdgeCrossing:
                     orb      #$08                         ; 
                     bra      P0ED6                        ; 
 
+
 P0ED0:              cmpa     1,x                          ; 
                     ble      P0ED6                        ; 
                     orb      #$04                         ; 
@@ -3999,10 +4099,12 @@ P0ED6:              lda      <$9C                         ;
                     orb      #$02                         ; 
                     rts                                   ; 
 
+
 P0EDF:              cmpa     3,x                          ; 
                     bge      P0EE5                        ; 
                     orb      #$01                         ; 
 P0EE5:              rts                                   ; 
+
 
 *
 * The following are all threshold tables, used when
@@ -4065,10 +4167,11 @@ DetermineMazeWalls:
                     ldx      #$C8B5                       ; 
                     leay     ,x                           ; 
                     jsr      move_block2                  ; 
-                    if       DALEK = 1 
+ if  DALEK = 1 
                     rts      
 
-                    endif    
+
+ endif  
                     leax     ,y                           ; 
                     ldb      #$08                         ; 
                     stb      <$9F                         ; 
@@ -4085,6 +4188,7 @@ P0F0C:              jsr      get_random_a                 ;
                     stb      5,x                          ; 
                     bra      P0F53                        ; 
 
+
 P0F23:              cmpa     #$02                         ; 
                     blt      P0F35                        ; 
                     ldb      1,x                          ; * Draw to the right from point 
@@ -4095,6 +4199,7 @@ P0F23:              cmpa     #$02                         ;
                     stb      6,x                          ; 
                     bra      P0F53                        ; 
 
+
 P0F35:              cmpa     #$01                         ; 
                     blt      P0F47                        ; 
                     ldb      5,x                          ; * Draw downwards from point 
@@ -4104,6 +4209,7 @@ P0F35:              cmpa     #$01                         ;
                     orb      #$01                         ; * quad next to it has a left wall 
                     stb      6,x                          ; 
                     bra      P0F53                        ; 
+
 
 P0F47:              ldb      ,x                           ; * Draw upwards from point 
                     orb      #$02                         ; * This quad has a right wall, and 
@@ -4124,6 +4230,7 @@ P0F5E:              leax     1,x                          ;
                     jsr      checkDoubleWalls 
 
                     rts                                   ; 
+
 
 *
 * DetermineDirectionToMove()
@@ -4165,8 +4272,10 @@ DetermineDirectionToMove:
                     orb      #$04                         ; 
                     bra      P0F80                        ; 
 
+
 P0F7A:              orb      #$20                         ; 
                     bra      P0F80                        ; 
+
 
 P0F7E:              orb      #$08                         ; 
 P0F80:              nega                                  ; 
@@ -4180,11 +4289,14 @@ P0F80:              nega                                  ;
                     orb      #$02                         ; 
                     rts                                   ; 
 
+
 P0F92:              orb      #$20                         ; 
                     rts                                   ; 
 
+
 P0F95:              orb      #$01                         ; 
                     rts                                   ; 
+
 
 *
 * MapPointToQnMakeRel                                     ;MapPointToQuadrantAndMakeRelative()
@@ -4232,6 +4344,7 @@ MapPointToQnMakeRel:                                      ;MapPointToQuadrantAnd
                     addb     #$0A                         ; 
                     bra      P0FA9                        ; 
 
+
 P0FA3:              cmpa     #$20                         ; * 32 
                     bgt      P0FA9                        ; 
                     addb     #$05                         ; 
@@ -4258,6 +4371,7 @@ P0FBF:              stb      <quadrantOfPoint             ; * Save the quadrant 
                     addd     <$9B                         ; 
                     std      <$9B                         ; * Make into a relative point 
                     rts                                   ; 
+
 
 RelativeOffsetConversionTable: 
                     DB       $E0                          ; * Quad 0 y 
@@ -4314,28 +4428,44 @@ RelativeOffsetConversionTable:
 *   Quadrant has Top Wall------------^
 *   Quadrant has Right Wall--------------^
 *   Quadrant has Left Wall-------------------^
+
+; pointer "adds" to a vectorlist, to draw wall in four directions
+WALL_UP_DRAW        =        0 
+WALL_DOWN_DRAW      =        2 
+WALL_RIGHT_DRAW     =        4 
+WALL_LEFT_DRAW      =        6 
+
+; bit data for "checks" of a wall
+WALL_DOWN_CHECK     =        8 
+WALL_UP_CHECK       =        4 
+WALL_RIGHT_CHECK    =        2 
+WALL_LEFT_CHECK     =        1 
+
+ALL_FOUR_WALLS_CHECK  =      (WALL_DOWN_CHECK+WALL_UP_CHECK+WALL_RIGHT_CHECK+WALL_LEFT_CHECK) 
+
 checkDoubleWalls 
 ; vertical
-                    lda      #4                           ; vertical checks 
+                    lda      #4                           ; 4 vertical checks 
                     sta      <$9F                         ; 
-                    ldu      #$C8AB+0                     ; first 4 points 
-                    ldx      #$C8B5+10                    ; 5 lower quadrants 
+                    ldu      #$C8AB+0                     ; first 4 points - draw byte (0-6) 
+                    ldx      #$C8B5+10                    ; 5 lower quadrants - wall check bytes 
 doNextVerticalCheck 
 ; start point 0
                     lda      ,u 
-                    cmpa     #2                           ; down 
+                    cmpa     #WALL_DOWN_DRAW              ; down 
                     bne      nextVerticalCheck1 
                     lda      4,u 
 ; 0 = up
+; cmpa     #WALL_UP_DRAW                           ; up
                     bne      nextVerticalCheck1 
-                    lda      #2                           ; swap up/down in lower section 
+                    lda      #WALL_DOWN_DRAW              ; swap up/down in lower section 
                     sta      4,u 
                                                           ; update quadrant info 
                     lda      ,x 
-                    ora      #2                           ; quadrant 10 now also has a right wall 
+                    ora      #WALL_RIGHT_CHECK            ; quadrant 10 now also has a right wall 
                     sta      ,x 
                     lda      1,x 
-                    ora      #1                           ; quadrant 11 now also has a left wall 
+                    ora      #WALL_LEFT_CHECK             ; quadrant 11 now also has a left wall 
                     sta      1,x 
 nextVerticalCheck1 
                     dec      <$9F                         ; 
@@ -4344,27 +4474,29 @@ nextVerticalCheck1
                     leax     1,x 
                     bra      doNextVerticalCheck 
 
+
 verticalDone 
-                    lda      #3                           ; vertical checks 
+                    lda      #3                           ; 3 horizontal checks 
                     sta      <$9F                         ; 
                     ldu      #$C8AB+0 
                     ldx      #$C8B5+1 
+
 doNextUpperHorizontalCheck 
 ; start point 0
                     lda      ,u 
-                    cmpa     #4                           ; right 
+                    cmpa     #WALL_RIGHT_DRAW             ; right 
                     bne      nextUpperHorizontalCheck1 
                     lda      1,u 
-                    cmpa     #6                           ; left 
+                    cmpa     #WALL_LEFT_DRAW              ; left 
                     bne      nextUpperHorizontalCheck1 
-                    lda      #0                           ; up instead of left 
+                    lda      #WALL_UP_DRAW                ; up instead of left 
                     sta      1,u 
                                                           ; update quadrant info 
                     lda      ,x 
-                    ora      #2                           ; quadrant 1 now also has a right wall 
+                    ora      #WALL_RIGHT_CHECK            ; quadrant 1 now also has a right wall 
                     sta      ,x 
                     lda      1,x 
-                    ora      #1                           ; quadrant 2 now also has a left wall 
+                    ora      #WALL_LEFT_CHECK             ; quadrant 2 now also has a left wall 
                     sta      1,x 
 nextUpperHorizontalCheck1 
                     dec      <$9F                         ; 
@@ -4373,27 +4505,28 @@ nextUpperHorizontalCheck1
                     leax     1,x 
                     bra      doNextUpperHorizontalCheck 
 
+
 upperHorizontalDone 
-                    lda      #3                           ; vertical checks 
+                    lda      #3                           ; 3 horizontal checks 
                     sta      <$9F                         ; 
                     ldu      #$C8AB+4 
                     ldx      #$C8B5+11 
 doNextLowerHorizontalCheck 
 ; start point 0
                     lda      ,u 
-                    cmpa     #4                           ; right 
+                    cmpa     #WALL_RIGHT_DRAW             ; right 
                     bne      nextLowerHorizontalCheck1 
                     lda      1,u 
-                    cmpa     #6                           ; left 
+                    cmpa     #WALL_LEFT_DRAW              ; left 
                     bne      nextLowerHorizontalCheck1 
-                    lda      #2                           ; down instead of left 
+                    lda      #WALL_DOWN_DRAW              ; down instead of left 
                     sta      1,u 
                                                           ; update quadrant info 
                     lda      ,x 
-                    ora      #2                           ; quadrant 11 now also has a right wall 
+                    ora      #WALL_RIGHT_CHECK            ; quadrant 11 now also has a right wall 
                     sta      ,x 
                     lda      1,x 
-                    ora      #1                           ; quadrant 12 now also has a left wall 
+                    ora      #WALL_LEFT_CHECK             ; quadrant 12 now also has a left wall 
                     sta      1,x 
 nextLowerHorizontalCheck1 
                     dec      <$9F                         ; 
@@ -4402,8 +4535,10 @@ nextLowerHorizontalCheck1
                     leax     1,x 
                     bra      doNextLowerHorizontalCheck 
 
+
 lowerHorizontalDone 
                     rts      
+
 
 ; one of the four center pieces could contain a "prison"
 ; if the four surrounding "draw" points
@@ -4432,89 +4567,91 @@ lowerHorizontalDone
 ; prisons can be clock wise or antic clock wise
 ; I do not check for direction, I set all 4
 ; draws to a correct settings
-; (0=up, 2=down, 4=to right, 6=to left)
+; (0=up, 2=down, 4=to right, 6=to left) 
 ; YES 6 because these are ADDS! to a pointer to walls!
 ; each point can only have ONE line!
 checkPrison 
                     ldb      $C8B5+6                      ; left most center section 
-                    cmpb     #$f 
+                    cmpb     #ALL_FOUR_WALLS_CHECK 
                     bne      noLeftPrison 
 ; change point 1 from left to up 
 ;
 ; change Quadrant info
 ; update two quadrants, collsion detection remove one wall
-                    andb     #$f-4                        ; no top wall 
+                    andb     #ALL_FOUR_WALLS_CHECK-WALL_UP_CHECK ; no top wall 
                     stb      $C8B5+6 
                     lda      $C8B5+1 
-                    anda     #$f-8                        ; no bottom wall 
+                    anda     #ALL_FOUR_WALLS_CHECK-WALL_DOWN_CHECK ; no bottom wall 
 ; and add another instead
-                    ora      #$1                          ; but a left wall 
+                    ora      #WALL_LEFT_CHECK             ; but a left wall 
                     sta      $C8B5+1 
                     lda      $C8B5 
-                    ora      #$2                          ; and a right wall 
+                    ora      #WALL_RIGHT_CHECK            ; and a right wall 
                     sta      $C8B5 
 ; change draw info, clockwise
-                    lda      #2 
+                    lda      #WALL_DOWN_DRAW 
                     sta      $C8AB+1                      ; draw down 
-                    lda      #6 ; 
+                    lda      #WALL_LEFT_DRAW 
                     sta      $C8AB+5                      ; draw left 
-                    lda      #0 
+                    lda      #WALL_UP_DRAW 
                     sta      $C8AB+4                      ; draw up 
                     sta      $C8AB+0                      ; draw up in first point 
 noLeftPrison 
                     ldb      $C8B5+7                      ; center most center section 
-                    cmpb     #$f 
+                    cmpb     #ALL_FOUR_WALLS_CHECK 
                     bne      noCenterPrison 
 ; change point 1 from left to up 
 ;
 ; change Quadrant info
 ; update two quadrants, remove one wall
-                    andb     #$f-4                        ; no top wall 
+                    andb     #ALL_FOUR_WALLS_CHECK-WALL_UP_CHECK ; no top wall 
                     stb      $C8B5+7 
                     lda      $C8B5+2 
-                    anda     #$f-8                        ; no bottom wall 
+                    anda     #ALL_FOUR_WALLS_CHECK-WALL_DOWN_CHECK ; no bottom wall 
 ; and add another instead
-                    ora      #$1                          ; but a left wall 
+                    ora      #WALL_LEFT_CHECK             ; but a left wall 
                     sta      $C8B5+2 
                     lda      $C8B5+1 
-                    ora      #$2                          ; and a right wall 
+                    ora      #WALL_RIGHT_CHECK            ; and a right wall 
                     sta      $C8B5+1 
 ; change draw info, clockwise
-                    lda      #2 
+                    lda      #WALL_DOWN_DRAW 
                     sta      $C8AB+2                      ; draw down 
-                    lda      #6 
+                    lda      #WALL_LEFT_DRAW 
                     sta      $C8AB+6                      ; draw left 
-                    lda      #0 
+                    lda      #WALL_UP_DRAW 
                     sta      $C8AB+5                      ; draw up 
                     sta      $C8AB+1                      ; draw up in first point 
 noCenterPrison 
                     ldb      $C8B5+8                      ; center most center section 
-                    cmpb     #$f 
+                    cmpb     #ALL_FOUR_WALLS_CHECK 
                     bne      noRightPrison 
 ; change point 1 from left to up 
 ;
 ; change Quadrant info
 ; update two quadrants, remove one wall
-                    andb     #$f-4                        ; no top wall 
+; pointer "adds" to a vectorlist
+                    andb     #ALL_FOUR_WALLS_CHECK-WALL_UP_CHECK ; no top wall 
                     stb      $C8B5+8 
                     lda      $C8B5+3 
-                    anda     #$f-8                        ; no bottom wall 
+                    anda     #ALL_FOUR_WALLS_CHECK-WALL_DOWN_CHECK ; no bottom wall 
 ; and add another instead
-                    ora      #$1                          ; but a left wall 
+                    ora      #WALL_LEFT_CHECK             ; but a left wall 
                     sta      $C8B5+3 
                     lda      $C8B5+2 
-                    ora      #$2                          ; and a right wall 
+                    ora      #WALL_RIGHT_CHECK            ; and a right wall 
                     sta      $C8B5+2 
 ; change draw info, clockwise
-                    lda      #2 
+                    lda      #WALL_DOWN_DRAW 
                     sta      $C8AB+3                      ; draw down 
-                    lda      #6 
+                    lda      #WALL_LEFT_DRAW 
                     sta      $C8AB+7                      ; draw left 
-                    lda      #0 
+                    lda      #WALL_UP_DRAW 
                     sta      $C8AB+6                      ; draw up 
                     sta      $C8AB+2                      ; draw up in first point 
 noRightPrison 
                     rts      
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 initBulletList                                            ;#isfunction  
@@ -4534,6 +4671,7 @@ next_PS_list_entry_ig3
                     sty      bullet_objects_head 
                     clr      bulletCount 
                     rts      
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -4559,24 +4697,26 @@ newBulletObject                                           ;#isfunction
 newBulletObject_nops 
                     rts      
 
+
 ; 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; bullet pointer in u
 ; leaves with "next" bullet in u
 removeBullet 
-                    if       ROBOT_BULLET_RESTRUCTION = 1 
+ if  ROBOT_BULLET_RESTRUCTION = 1 
                     lda      B_ORIGIN, u 
                     bne      noRobotBuellt 
                     dec      robotShotCounter 
 noRobotBuellt 
-                    endif    
+ endif  
                     cmpu     bullet_objects_head          ; is it the first? 
                     bne      was_not_first_re             ; no -> jump 
 was_first_re 
                     ldx      B_NEXT_OBJECT,u              ; s pointer to next objext 
                     stx      bullet_objects_head          ; the next object will be the first 
                     bra      removeBulletEnd 
+
 
 was_not_first_re                                          ;        find previous, go thru all objects from first and look where "I" am the next... 
                     ldy      bullet_objects_head          ; start at list head 
@@ -4585,6 +4725,7 @@ try_next_re
                     beq      found_next_switch_re         ; jup -> jump 
                     ldy      B_NEXT_OBJECT,y              ; otherwise load the next as new current 
                     bra      try_next_re                  ; and search further 
+
 
 found_next_switch_re 
                     ldx      B_NEXT_OBJECT,u              ; we load "our" next object to s 
@@ -4596,6 +4737,7 @@ removeBulletEnd
                     stu      bullet_empty_head 
                     tfr      x,u 
                     rts      
+
 
 ;
 colorSetup 
@@ -4621,6 +4763,7 @@ noBadRobots2
                     sta      currentShotColor 
                     rts      
 
+
 bwSetup 
                     lda      #$7f 
                     sta      currentShotColor 
@@ -4631,6 +4774,7 @@ bwSetup
                     sta      currentStringColor 
                     sta      currentRobotColor 
                     rts      
+
 
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -4652,11 +4796,13 @@ ramfunction         equ      newEepromRAMStart
                     ldx      #$1000                       ; the 'switch back to menu' command 
                     jmp      ramfunction                  ; up up and away 
 
+
 COPY_RAM_TO_VECROM 
                     ldu      #v4e_saveBlockStart          ; Source copy the vec4ever switching function into place 
                     ldx      #vec4SaveBuffer              ; destination 
                     lda      #1+(v4e_saveBlockEnd-v4e_saveBlockStart) 
                     jmp      Move_Mem_a 
+
 
 store_score 
                     bsr      COPY_RAM_TO_VECROM 
@@ -4666,6 +4812,7 @@ store_score
                     jsr      Move_Mem_a 
                     ldx      #$4000                       ; the 'store data' command 
                     jmp      ramfunction                  ; up up and away 
+
 
 ;
 ; the function below does the magic handshake with the cart,
@@ -4679,6 +4826,7 @@ StoreHiscoreFnc
 v4eloop             cmpd     $0                           ; while the cart is working there is only one data byte 
                     bne      v4eloop                      ; header just in case 
                     rts      
+
 
 StoreHiscoreFncEnd 
 ;
@@ -4734,8 +4882,10 @@ Game_Str:           FDB      $E0C0
 ;
 LF793_RTS:          RTS      
 
+
 LF793_RTS2: 
                     RTS      
+
 
 select_game 
                     STD      Vec_Max_Players              ;Save max players and games 
@@ -4751,6 +4901,7 @@ LF7B6:              STD      Vec_Num_Players              ;Save default selectio
                     STD      <Vec_Text_HW 
                     STA      <$C83C                       ;Set $C83C flag to non-zero 
                     BRA      LF82C 
+
 
 LF7C5:              JSR      Wait_Recal                   ;Start with a fresh frame, DP to I/O 
                     jsr      PLY_PLAY 
@@ -4775,6 +4926,7 @@ LF7C5:              JSR      Wait_Recal                   ;Start with a fresh fr
                     jsr      editOptions 
                     bra      noOptionsDone4 
 
+
 noOptions4 
                     tsta     
                     BNE      LF82C                        ;If any button pressed, reset timers 
@@ -4797,6 +4949,7 @@ LF7F1:              LDA      <Vec_Counter_2               ;Return if counter 2 t
 LF80C:              STA      <Vec_Num_Players             ; Update number of players 
                     BRA      LF82C                        ;Update timers and go back to the loop 
 
+
 LF810:              LDA      <Vec_Num_Game                ;Return to the loop if no game options 
                     BEQ      LF7C5 
                     LDB      <Vec_Button_1_2 
@@ -4806,6 +4959,7 @@ LF810:              LDA      <Vec_Num_Game                ;Return to the loop if
                     BLS      LF82A 
                     LDA      #$01                         ;Reset to 1 if maximum exceeded 
                     BRA      LF82A 
+
 
 LF821:              LDB      <Vec_Button_1_3 
                     BEQ      LF7C5 
@@ -4818,6 +4972,7 @@ LF82C:              LDA      #$F3                         ;Reset timers
                     COMA     
                     STA      <Vec_Counter_1 
                     jmp      LF7C5                        ;Go back to the loop 
+
 
 ;
                     include  "highscoreStuff.asm"
@@ -4856,6 +5011,7 @@ inc_reg_dsy:
                     bpl      next_reg_dsy 
 doneSound_2: 
                     rts      
+
 
                     include  "arkosPlayer.i"
 ;***************************************************************************
