@@ -255,10 +255,10 @@ highScoreTmpBuffer  EQU      conversionBuffer+7           ; 14 ; one "0" is adde
 *
 *    DisplayBonusString
 *            When checking to see if the bonus strings should be displayed,
-                    *        the 'ble' command really should be a 'blt'!!  This explains why
+*        the 'ble' command really should be a 'blt'!!  This explains why
 *            when a player clears a maze containing 10 robots, the bonus
 *            string was not displayed.  In this case the bonus string is
-                    *        "   100", and this fails the above check!
+*        "   100", and this fails the above check!
 *
 *    DisplayLives
 *            There is no check to see if the C8D8 buffer is overrun (this
@@ -303,7 +303,7 @@ player_x            =        $C890
 *
 * C893-C894     Otto's position (y,x)
 *
-                    *        C895-C896 Player 's position (starting position); used to seed Otto's
+*        C895-C896 Player 's position (starting position); used to seed Otto's
 *               initial position.
 *
 * C897          Counter                                   ; controls bouncing offset for Otto's 'y' position
@@ -434,16 +434,16 @@ player_x            =        $C890
 *                     $0E = arms shooting 45 degrees lower left
 *                     $10 = arms shooting 45 degrees lower right
 *
-                    *        C8D0 Intensity used when drawing a 'fried' player
+*        C8D0 Intensity used when drawing a 'fried' player
 *
 * C8D1-C8D7     Bonus score string buffer
 *
 * C8D8-????     Buffer used when displaying number of lives a player has.
 *
-                    *        C8DE 'y' delta between 2 points, as determined by
+*        C8DE 'y' delta between 2 points, as determined by
 *               DetermineDirectionToMove()
 *
-                    *        C8DF 'x' delta between 2 points, as determined by
+*        C8DF 'x' delta between 2 points, as determined by
 *               DetermineDirectionToMove()
 *
 * C8E0          Used during scrolling                     ; used to calculate 'y' delta
