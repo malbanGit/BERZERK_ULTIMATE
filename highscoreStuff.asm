@@ -58,6 +58,7 @@ isDemo              equ      highScoreDone *1
 NORMAL_TEXT_SIZE    EQU      $F160                        ; big text that is 
 highscores_screen 
                     clr      isDemo 
+
 isdemoentry 
                     ldx      RecalCounter                 ; save recal counter, since 
                     pshs     x 
@@ -72,15 +73,19 @@ isdemoentry
                     direct   $D0 
                     tst      isDemo 
                     beq      thisIsNoDemo 
-thisIsNoDemo 
+thisIsNoDemo
+ 
                     jsr      shutup 
                     ldu      #(laneRAM-laneData) 
                     leau     <laneData,u 
                     ldx      #lane1Data 
                     jsr      initLane 
+
                     leau     <laneData,u 
                     ldx      #lane8Data 
                     jsr      initLane 
+
+
                     ldd      #0 
                     std      roundCounter 
                     leau     <laneData,u 
@@ -89,6 +94,7 @@ thisIsNoDemo
                     clr      RecalCounter+1 
                     JSR      Read_Btns                    ; get button status once, since only 
                                                           ; differences are noticed 
+
 highscores_screen_loop_1: 
                     direct   $D0 
 
@@ -107,14 +113,35 @@ doNextLane
                     ldd      ,y 
                     beq      lanesDone 
                     jsr      doLane 
+ tst      isDemo 
+ beq      thisIsNoDemo2a
+
+
                     leay     <laneData,y 
+
+
                     bra      doNextLane 
+thisIsNoDemo2a
 
 lanesDone: 
 ; increase round counter!
                     ldx      roundCounter 
                     leax     1,x 
                     stx      roundCounter 
+
+ tst      isDemo 
+ bne noVersion
+                    lda      #60 
+                    _SCALE_A  
+
+                    LDD      #$F520            ; load default text height & width 
+                    STD      Vec_Text_HW                  ; poke it to ram location 
+
+                    ldd      #$7fcb                       ; max, since -2 in each step 
+                    ldu      #version
+                    jsr      sync_Print_Str_d_fixed 
+noVersion
+
                     LDD      #NORMAL_TEXT_SIZE            ; load default text height & width 
                     STD      Vec_Text_HW                  ; poke it to ram location 
                     JSR      Intensity_5F                 ; Sets the intensity of the 
@@ -122,6 +149,7 @@ lanesDone:
                     std      Vec_Text_Height 
                     lda      #80 
                     _SCALE_A  
+
                     ldd      #$78AB                       ; max, since -2 in each step 
                     ldu      #highscore_string            ; high score title 
                     jsr      sync_Print_Str_d_fixed 
@@ -200,7 +228,7 @@ hs_no_new_xpos_dis
                     CMPA     #$00                         ; is a button pressed? 
                     lBEQ     highscores_screen_loop_1     ; no, than stay in init_screen_loop 
                     tst      isDemo 
-                    beq      thisIsNoDemo2 
+                    lbeq      thisIsNoDemo2 
                     lda      >$c80F 
                     anda     #$f 
                     sta      >$c80F 
@@ -321,10 +349,37 @@ buildHighScoreTmp
                     STd      ,y++ 
                     lda      2,x                          ; name 
                     STa      ,y+ 
+
+                    ldb      3,x                          ; and level 
+
+    lda      #' '; NEO
+    STa      ,y+                          ; 
+
+
+; if level is 3 digits
+; remove the space between player name and score
+; looks bad
+; but displays correct values
+ cmpb #99
+ bls twoDigitLevel
+    lda      #'1'
+    STa      ,y+                          ; 
+
+tryAgain100
+    subb     #100 
+    cmpb     #100 
+    blo      contiuneHSBuild 
+    lda      -1,y                         ; 
+    inca     
+    STa      -1,y                         ; 
+    bra      tryAgain100
+
+twoDigitLevel
                     lda      # ' '
                     STa      ,y+                          ; 
-                    ldb      3,x                          ; and level 
-                    lda      # '1'
+
+contiuneHSBuild
+                    lda      #'1'
                     cmpb     #10 
                     blt      smallerTen 
                     STa      ,y+                          ; 
@@ -338,15 +393,26 @@ tryAgain
                     bra      tryAgain 
 
 smallerTen 
+ lda -1,y
+ cmpa #' '
+ beq spaceIsOk
+ lda #'0'
+ bra cont10_
+spaceIsOk
+
                     lda      # ' '                        ;  space 
+cont10_
                     STa      ,y+                          ; 
 greater9: 
                     addb     # '0'
                     STb      ,y+                          ; 
-                    lda      # ' '
-                    STa      ,y+                          ; space 
+; NEO                    lda      # ' '
+;                    STa      ,y+                          ; space 
+
                     ldd      4,x 
                     STd      ,y++                         ; 2 byte of score 
+
+
                     ldd      6,x 
                     STd      ,y++                         ; 2 byte of score 
                     ldd      8,x 

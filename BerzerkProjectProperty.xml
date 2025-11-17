@@ -9,7 +9,7 @@
 		<Path>projects</Path>
 		<MainFile>BERZERK.ASM</MainFile>
 		<Description></Description>
-		<Version>1.0</Version>
+		<Version>1.4</Version>
 		<Author></Author>
 		<Bankswitching>none</Bankswitching>
 		<createBankswitchCode>false</createBankswitchCode>
